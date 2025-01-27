@@ -1,0 +1,10 @@
+[package]
+name = "dnf_widget"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+iced = "0.10"
+iced_native = "0.10"
+iced_wgpu = "0.10"
+tokio = { version = "1", features = ["full"] }
