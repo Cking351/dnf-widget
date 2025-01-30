@@ -64,6 +64,9 @@ impl Application for DnfWidget {
             Message::UpgradeDone(result) => {
                 self.is_updating = false;
                 self.status = result;
+
+                // Rerun to refresh state
+                return Command::perform(check_for_updates(), Message::UpdatesChecked);
             }
         }
         Command::none()
@@ -129,18 +132,25 @@ async fn check_for_updates() -> String {
         .output()
     {
         Ok(output) => {
-            if output.status.success() {
-                // Parse the output to determine if packages are listed
+            if output.status.code() == Some(100) {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                if stdout.trim().is_empty() {
-                    // No packages are listed, no updates are available
-                    "No packages available".to_string()
+                let lines: Vec<&str> = stdout.trim().lines().collect();
+
+                // Skip headers (headers usually end with a blank line)
+                if !lines.is_empty() && !lines[0].is_empty() {
+                    let package_lines = &lines;
+                    let count = package_lines.iter()
+                        .count();
+
+                    if count > 0 {
+                        format!("{} packages available for update:", count)
+                    } else {
+                        "No packages available".to_string()
+                    }
                 } else {
-                    // Updates are available
-                    format!("Packages available:\n{}", stdout)
+                    "No packages available".to_string()
                 }
             } else {
-                // Check the stderr to see if it's a repository failure or other error
                 format!(
                     "Failed to fetch updates:\n{}",
                     String::from_utf8_lossy(&output.stderr)
@@ -152,10 +162,10 @@ async fn check_for_updates() -> String {
 }
 
 async fn dnf_upgrade() -> String {
-    match ShellCommand::new("sudo")
+    match ShellCommand::new("pkexec")
         .arg("dnf")
         .arg("upgrade")
-        .arg("y")
+        .arg("-y")
         .output()
     {
         Ok(output) => parse_dnf_output(output),
@@ -165,7 +175,11 @@ async fn dnf_upgrade() -> String {
 
 fn parse_dnf_output(output: Output) -> String {
     if output.status.success() {
-        String::from_utf8_lossy(&output.stdout).to_string()
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let lines: Vec<&str> = stdout.trim().lines().collect();
+        let package_count = lines.iter().count();
+
+        format!("{} packages upgraded.", package_count)
     } else {
         String::from_utf8_lossy(&output.stderr).to_string()
     }
