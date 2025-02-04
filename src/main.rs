@@ -1,5 +1,5 @@
 use iced::{executor, Color};
-use iced::widget::{button, column, text, scrollable};
+use iced::widget::{button, column, text, scrollable, progress_bar};
 use iced::{Application, Command, Element, Length, Settings, Theme};
 use iced::{alignment, theme};
 
@@ -108,16 +108,22 @@ impl Application for DnfWidget {
                 .padding(10)
         };
 
-        let status_text = text(&self.status)
-            .size(16)
-            .horizontal_alignment(alignment::Horizontal::Center);
-
+        let status_element = if self.is_updating {
+            column![
+                text(&self.status).size(16),
+                progress_bar(0.0..=100.0, 50.0) // Fake bar for now
+            ]
+                .spacing(10)
+                .into()
+        } else {
+            text(&self.status).size(16).into()
+        };
 
         column![
             text("DNF Updates").size(24),
             updates_view,
             upgrade_button,
-            status_text,
+            status_element,
         ]
             .spacing(20)
             .padding(20)
